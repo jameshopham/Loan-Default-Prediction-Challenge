@@ -1,0 +1,501 @@
+---
+title: "Stat 652 Project"
+author: "James Hopham"
+date: "2023-03-11"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Abstract
+
+This project aims to apply different machine learning algorithms to classify the Loan Status of approved LendingClub loans from 2012-2014. The challenge was initially proposed by Siraj Raval, an AI Education YouTuber, who gave participants the task of equaling or improving the accuracies achieved in the LoanDefault-Prediction competition. The steps include collecting and preparing data, training models, evaluating performance, and improving model performance. The best machine learning model for classifying Loan Status will be determined based on the results achieved.
+
+## Introduction
+
+The ability to predict loan defaults is of utmost importance in the lending industry as it helps lenders make informed decisions and minimize risks. In recent years, machine learning algorithms have been widely adopted to build robust models for predicting loan defaults. In this project, we aim to apply different machine learning algorithms to classify the Loan Status of approved LendingClub loans from 2012-2014. The project builds on a data challenge proposed by Siraj Raval, a famous AI Education YouTuber, who tasked participants with equaling or improving the accuracies achieved in the LoanDefault-Prediction competition. We will follow standard practices in collecting and preparing data, training models, evaluating performance, and improving model performance. The ultimate goal is to determine the best machine learning model for classifying Loan Status and provide insights that can help improve lending decisions.
+
+One classifier that we will be using for this project is Logistic Regression. Logistic Regression is a type of regression analysis that is used for predicting binary outcomes, such as predicting whether a loan will default or not. The goal of logistic regression is to find the best fit of a linear equation that relates the predictor variables to the probability of the binary outcome. The output of logistic regression is a predicted probability of the binary outcome, ranging from 0 to 1. Logistic Regression is a generalization of logistic regression that allows for more flexibility in modeling the relationship between the predictor variables and the binary outcome. Logistic Regression is a widely used technique for binary classification problems and is particularly useful when the data are linearly separable. In this project, we will apply Logistic Regression to predict loan defaults and evaluate its performance using various metrics.
+
+Following this is the use of decision trees which are a simple yet powerful algorithm for classification and regression tasks. It is a tree-based model that partitions the feature space into disjoint regions by recursively splitting the data based on the most informative feature. Each internal node of the tree represents a test on a feature, and each leaf node represents a class label or a regression value. Decision Tree is easy to understand and interpret, and it can handle both categorical and continuous variables. However, Decision Tree is prone to overfitting, and its performance can degrade if the tree is too deep or too complex. To overcome these limitations, we can use ensemble methods such as Random Forest that combine multiple Decision Trees to improve the accuracy and robustness of the model. In this project, we will apply Decision Tree and Random Forest to classify loan defaults and evaluate their performance using various metrics.
+
+Another classifier that we will be using for this project is Random Forest. Random Forest is a powerful machine learning algorithm that is widely used for classification tasks. Random Forest creates multiple decision trees using a subset of the features and a subset of the observations in the training set. The final prediction of the model is made by averaging the predictions of all the decision trees. Random Forest is an ensemble learning method that can improve the accuracy and robustness of the model by reducing overfitting. Random Forest is able to handle both categorical and continuous variables, and it can handle missing data as well. In this project, we will apply Random Forest to predict loan defaults and evaluate its performance using various metrics.
+
+Another one of the classifiers we will be using for this project is K-Nearest Neighbors (KNN). KNN is a non-parametric algorithm that classifies a new data point based on the majority class of its k-nearest neighbors. The value of k is a hyperparameter that determines the number of neighbors considered. KNN is a simple and effective algorithm that is particularly useful when there is little prior knowledge about the distribution of the data. However, it can be computationally expensive for large datasets and may not perform well in high-dimensional spaces. Despite these limitations, KNN has been widely used in various fields, including finance, healthcare, and marketing. We will implement KNN and tune its hyperparameters to achieve the best performance in predicting loan defaults.
+
+Naive Bayes is a probabilistic algorithm for classification tasks that is based on Bayes' theorem. It assumes that the features are conditionally independent given the class label, which means that the presence or absence of a feature does not depend on the presence or absence of any other feature. Naive Bayes is computationally efficient and can handle a large number of features. It works well with high-dimensional data and can be easily updated with new data. However, Naive Bayes may suffer from the "zero-frequency" problem, which occurs when a feature in the testing set has not been seen in the training set. In this project, we will apply Naive Bayes to classify loan defaults and evaluate its performance using various metrics.
+
+The last classifier that we will be using for this project is Artificial Neural Networks (ANNs). ANNs are a class of machine learning algorithms that are inspired by the structure and function of the human brain. ANNs consist of multiple interconnected layers of nodes, with each node processing information and passing it to the next layer. The output of the final layer represents the predicted class. ANNs are capable of learning complex patterns and relationships in the data and are highly flexible in terms of the number of layers and nodes. However, ANNs require large amounts of data and may suffer from overfitting if not properly regularized. ANNs have been successfully applied in various domains, including image and speech recognition, natural language processing, and financial forecasting.
+
+## Modeling
+
+```{r}
+library(pacman)
+p_load(titanic, tidyverse, janitor, naniar, DataExplorer, tidymodels, yardstick, rsample, rpart, partykit, kknn, discrim)
+```
+
+## Step 1
+
+```{r}
+data<-read_csv("lending_club_data_2012_2014.csv") %>% 
+    mutate(loan_status = factor(loan_status))
+```
+
+```{r}
+data2<-data%>%
+  mutate(loan_status = ifelse(loan_status == "Fully Paid", 1, 0)) 
+```
+
+```{r}
+data2 <- data2 %>% select(loan_status, term, grade, loan_amnt, last_fico_range_low, last_fico_range_high, pub_rec_bankruptcies, debt_settlement_flag) %>%
+  mutate(
+    loan_status = as_factor(loan_status),
+    term = as_factor(term),
+    grade = as_factor(grade)
+  )
+
+head(data2)
+```
+
+## Step 2
+
+```{r}
+data2 %>% group_by(loan_status) %>%
+  summarize(n = n()) %>%
+  mutate(freq = n / sum(n))
+
+data2 %>% group_by(term) %>%
+  summarize(n = n()) %>%
+  mutate(freq = n / sum(n))
+
+data2 %>% group_by(grade) %>%
+  summarize(n = n()) %>%
+  mutate(freq = n / sum(n))
+
+data2 %>% group_by(loan_amnt) %>%
+  summarize(n = n()) %>%
+  mutate(freq = n / sum(n))
+
+data2 %>% group_by(last_fico_range_low) %>%
+  summarize(n = n()) %>%
+  mutate(freq = n / sum(n))
+
+data2 %>% group_by(last_fico_range_high) %>%
+  summarize(n = n()) %>%
+  mutate(freq = n / sum(n))
+
+data2 %>% group_by(pub_rec_bankruptcies) %>%
+  summarize(n = n()) %>%
+  mutate(freq = n / sum(n))
+```
+
+```{r}
+data2_split <- initial_split(data2, prop = 0.75)
+data2_split
+
+data2_split %>%
+  training() 
+
+data2_recipe <- training(data2_split) %>%
+  recipe(loan_status ~ .) %>%
+  step_rm() %>% 
+  step_nzv(all_predictors()) %>%
+  prep()
+
+summary(data2_recipe)
+
+tidy(data2_recipe)
+
+data2_testing <- data2_recipe %>%
+  bake(testing(data2_split)) 
+
+data2_testing
+
+data2_training <- juice(data2_recipe)
+
+data2_training
+```
+
+## Step 3, 4, 5
+
+#### Null
+
+```{r}
+form<-as.formula(loan_status ~ term + grade+loan_amnt+last_fico_range_low+last_fico_range_high+pub_rec_bankruptcies)
+```
+
+```{r}
+mod_null_glm <- logistic_reg(mode = "classification") %>%
+  set_engine("glm") %>%
+  fit(loan_status ~ 1, data = data2_training)
+
+pred <- data2_training %>%
+  select(loan_status, last_fico_range_low) %>%
+  bind_cols(
+    predict(mod_null_glm, new_data = data2_training, type = "class")
+  ) %>%
+  rename(loan_status_null = .pred_class)
+
+accuracy(pred, loan_status, loan_status_null)
+```
+
+#### GLM
+
+```{r}
+mod_log_all <- logistic_reg(mode = "classification") %>%
+  set_engine("glm") %>%
+  fit(form, data = data2_training)
+
+
+pred <- pred %>%
+  bind_cols(
+    predict(mod_log_all, new_data = data2_training, type = "class")
+  ) %>%
+  rename(loan_status_log_all = .pred_class)
+
+pred %>%
+  conf_mat(truth = loan_status, estimate = loan_status_log_all)
+
+accuracy(pred, loan_status, loan_status_log_all)
+```
+
+```{r}
+mod_log_all %>%
+  predict(data2_testing, type = "prob") %>%
+  bind_cols(data2_testing) %>%
+  roc_curve(loan_status, .pred_0) %>%
+  autoplot()
+```
+
+```{r}
+mod_log_all %>%
+  predict(data2_testing, type = "prob") %>%
+  bind_cols(data2_testing) %>%
+  roc_auc(loan_status, .pred_0) 
+```
+
+```{r}
+mod_log_all %>%
+  predict(data2_testing, type = "prob") %>%
+  bind_cols(data2_testing) %>%
+  ggplot() +
+  geom_density(aes(x = .pred_1, fill = loan_status), 
+               alpha = 0.5)
+```
+
+#### Decision Tree
+
+```{r}
+mod_tree <- decision_tree(mode = "classification") %>%
+  set_engine("rpart") %>%
+  fit(form, data = data2_training)
+mod_tree
+```
+
+```{r}
+plot(as.party(mod_tree$fit))
+```
+
+```{r}
+mod_tree %>%
+  predict(data2_testing) %>%
+  bind_cols(data2_testing) %>%
+  metrics(truth = loan_status, estimate = .pred_class)
+```
+
+```{r}
+mod_tree %>%
+  predict(data2_testing) %>%
+  bind_cols(data2_testing) %>%
+  conf_mat(truth = loan_status, estimate = .pred_class)
+```
+
+```{r}
+mod_tree %>%
+  predict(data2_testing, type = "prob") %>%
+  bind_cols(data2_testing) %>%
+  roc_curve(loan_status, .pred_0) %>%
+  autoplot()
+```
+
+```{r}
+mod_tree %>%
+  predict(data2_testing, type = "prob") %>%
+  bind_cols(data2_testing) %>%
+  roc_auc(loan_status, .pred_0) 
+```
+
+```{r}
+mod_tree %>%
+  predict(data2_testing, type = "prob") %>%
+  bind_cols(data2_testing) %>%
+  ggplot() +
+  geom_density(aes(x = .pred_1, fill = loan_status), 
+               alpha = 0.5)
+```
+
+#### Random Forest
+
+```{r}
+data2_ranger <- rand_forest(trees = 100) %>% 
+  set_engine("ranger") %>%
+  set_mode("classification") %>%
+  fit(loan_status ~ ., data = data2_training)
+```
+
+```{r}
+data2_ranger %>%
+  predict(data2_testing) %>%
+  bind_cols(data2_testing) 
+```
+
+```{r}
+data2_ranger %>%
+  predict(data2_testing) %>%
+  bind_cols(data2_testing) %>%
+  metrics(truth = loan_status, estimate = .pred_class)
+```
+
+```{r}
+data2_ranger %>%
+  predict(data2_testing) %>%
+  bind_cols(data2_testing) %>%
+  conf_mat(truth = loan_status, estimate = .pred_class)
+```
+
+```{r}
+data2_ranger %>%
+  predict(data2_testing, type = "prob") %>%
+  bind_cols(data2_testing) %>%
+  roc_curve(loan_status, .pred_1) %>%
+  ggplot(aes(x = 1 - specificity, y = sensitivity)) +
+  geom_path() +
+  geom_abline(lty = 3) +
+  coord_equal() 
+
+data2_ranger %>%
+  predict(data2_testing, type = "prob") %>%
+  bind_cols(data2_testing) %>%
+  roc_curve(loan_status, .pred_0) %>%
+  autoplot()
+```
+
+```{r}
+data2_ranger %>%
+  predict(data2_testing, type = "prob") %>%
+  bind_cols(data2_testing) %>%
+  roc_auc(loan_status, .pred_0) 
+```
+
+```{r}
+data2_ranger %>%
+  predict(data2_testing, type = "prob") %>%
+  bind_cols(data2_testing) %>%
+  ggplot() +
+  geom_density(aes(x = .pred_1, fill = loan_status), 
+               alpha = 0.5)
+```
+
+#### KNN - doesn't work
+
+```{r}
+library(kknn)
+# distance metric only works with quantitative variables
+#train_q <- data2_training %>%
+  #select(loan_status, where(is.numeric))
+
+#mod_knn <- nearest_neighbor(neighbors = 5, mode = "classification") %>%
+  #set_engine("kknn", scale = TRUE) %>%
+ # fit(loan_status ~ last_fico_range_low, data = train_q)
+
+#pred <- pred %>%
+ # bind_cols(
+   # predict(mod_knn, new_data = train, type = "class")
+  #) %>%
+  #rename(income_knn = .pred_class)
+
+#pred %>%
+ # conf_mat(income, income_knn)
+```
+
+#### Naive Bayes
+
+```{r}
+data2_nb <- naive_Bayes(Laplace = 1) %>% 
+  set_engine("klaR") %>%
+  set_mode("classification") %>%
+  fit(loan_status ~ last_fico_range_low, data = data2_training)
+
+predict(data2_nb, data2_training)
+
+data2_nb %>%
+  predict(data2_testing) %>%
+  bind_cols(data2_testing) 
+
+data2_nb %>%
+  predict(data2_testing) %>%
+  bind_cols(data2_testing) %>%
+  metrics(truth = loan_status, estimate = .pred_class)
+
+data2_nb %>%
+  predict(data2_testing) %>%
+  bind_cols(data2_testing) %>%
+  conf_mat(truth = loan_status, estimate = .pred_class)
+
+data2_nb %>%
+  predict(data2_testing, type = "prob") %>%
+  bind_cols(data2_testing) %>%
+  roc_curve(loan_status, .pred_0) %>%
+  autoplot() 
+
+data2_nb %>%
+  predict(data2_testing, type = "prob") %>%
+  bind_cols(data2_testing) %>%
+  roc_auc(loan_status, .pred_0) 
+
+data2_nb %>%
+  predict(data2_testing, type = "prob") %>%
+  bind_cols(data2_testing) %>%
+  ggplot() +
+  geom_density(aes(x = .pred_1, fill = loan_status), 
+               alpha = 0.5)
+```
+
+#### Artificial Neural Network
+
+```{r}
+mod_nn <- mlp(mode = "classification", hidden_units = 5) %>%
+  set_engine("nnet") %>%
+  fit(form, data = data2_training)
+
+pred <- pred %>%
+  bind_cols(
+    predict(mod_nn, new_data = data2_training, type = "class")
+  ) %>%
+  rename(loan_status_nn = .pred_class)
+
+accuracy(pred, loan_status, loan_status_nn)
+```
+
+```{r}
+mod_nn %>%
+  predict(data2_testing, type = "prob") %>%
+  bind_cols(data2_testing) %>%
+  roc_auc(loan_status, .pred_0) 
+```
+
+```{r}
+mod_nn %>%
+  predict(data2_testing, type = "prob") %>%
+  bind_cols(data2_testing) %>%
+  roc_curve(loan_status, .pred_0) %>%
+  autoplot()
+```
+
+```{r}
+mod_nn %>%
+  predict(data2_testing, type = "prob") %>%
+  bind_cols(data2_testing) %>%
+  ggplot() +
+  geom_density(aes(x = .pred_1, fill = loan_status), 
+               alpha = 0.5)
+```
+
+## Conclusion
+
+After conducting our analysis on the LendingClub data using various machine learning models, we have found that the random forest model had the strongest performance. We tested the accuracy of each model on the training and testing datasets and used roc curves, confusion matrices, and probability density plots to assess their effectiveness. Among the models, the artificial neural network performed the worst. This could be due to the complexity of the neural network and the fact that it requires a large amount of data to train effectively. The decision tree performed the next best, but it may have suffered from overfitting since it tends to create complex models that can memorize the training data. Naive Bayes followed this, but it may have been limited by its assumption of independence between features.
+
+In terms of logistic regression and random forest, the models performed similarly on the testing data, but the random forest had better performance on the training set. This may be due to the fact that random forest can handle complex interactions between features and is less prone to overfitting than logistic regression. Additionally, the ability of random forest to handle missing values and noisy data may have contributed to its superior performance. Our findings suggest that random forest is a strong candidate for classifying loan status in this dataset.
+
+## Projected 2015 Loan Status
+
+```{r}
+data_early<-data2%>%
+  na.omit()
+```
+
+```{r}
+data_2015<-read_csv("lending_club_data_2015.csv") %>% 
+    mutate(loan_status = factor(loan_status))
+```
+
+```{r}
+data_2015<-data_2015%>%
+  mutate(loan_status = ifelse(loan_status == "Fully Paid", 1, 0)) 
+```
+
+```{r}
+data_2015 <- data_2015 %>% select(loan_status, term, grade, loan_amnt, last_fico_range_low, last_fico_range_high, pub_rec_bankruptcies, debt_settlement_flag) %>%
+  mutate(
+    loan_status = as_factor(loan_status),
+    term = as_factor(term),
+    grade = as_factor(grade)
+  )
+```
+
+```{r}
+data_2015 <- data_2015 %>% 
+  na.omit()
+```
+
+```{r}
+dataearly_ranger <- rand_forest(trees = 100) %>% 
+  set_engine("ranger") %>%
+  set_mode("classification") %>%
+  fit(loan_status ~ ., data = data_early)
+```
+
+```{r}
+dataearly_ranger %>%
+  predict(data_2015) %>%
+  bind_cols(data_2015) 
+```
+
+```{r}
+dataearly_ranger %>%
+  predict(data_2015) %>%
+  bind_cols(data_2015) %>%
+  metrics(truth = loan_status, estimate = .pred_class)
+```
+
+```{r}
+dataearly_ranger %>%
+  predict(data_2015) %>%
+  bind_cols(data_2015) %>%
+  conf_mat(truth = loan_status, estimate = .pred_class)
+```
+
+```{r}
+dataearly_ranger %>%
+  predict(data_2015, type = "prob") %>%
+  bind_cols(data_2015) %>%
+  roc_curve(loan_status, .pred_1) %>%
+  ggplot(aes(x = 1 - specificity, y = sensitivity)) +
+  geom_path() +
+  geom_abline(lty = 3) +
+  coord_equal() 
+
+dataearly_ranger %>%
+  predict(data_2015, type = "prob") %>%
+  bind_cols(data_2015) %>%
+  roc_curve(loan_status, .pred_0) %>%
+  autoplot()
+```
+
+```{r}
+dataearly_ranger %>%
+  predict(data_2015, type = "prob") %>%
+  bind_cols(data_2015) %>%
+  roc_auc(loan_status, .pred_0) 
+```
+
+```{r}
+dataearly_ranger %>%
+  predict(data_2015, type = "prob") %>%
+  bind_cols(data_2015) %>%
+  ggplot() +
+  geom_density(aes(x = .pred_1, fill = loan_status), 
+               alpha = 0.5)
+```
